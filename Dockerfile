@@ -1,4 +1,4 @@
-FROM php:8.3
+FROM php:8.4
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 RUN apt update
 RUN apt install git -y

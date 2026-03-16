@@ -1,247 +1,332 @@
-# Symfony GraphQl Bundle
+# Symfony GraphQL Bundle
 
-### This is a bundle based on the pure [PHP GraphQL Server](http://github.com/youshido/graphql/) implementation
+A robust [Symfony 7.4+](https://symfony.com/) bundle integrating a pure [PHP GraphQL Server](http://github.com/youshido/graphql/) implementation.
 
-This bundle provides you with:
+## Features
 
- * Full compatibility with the [RFC Specification for GraphQL](https://facebook.github.io/graphql/)
- * Agile object oriented structure to architect your GraphQL Schema
- * Intuitive Type system that allows you to build your project much faster and stay consistent
- * Built-in validation for the GraphQL Schema you develop
- * Well documented classes with a lot of examples
- * Automatically created endpoint /graphql to handle requests
-
-**There are simple demo application to demonstrate how we build our API, see [GraphQLDemoApp](https://github.com/Youshido/GraphQLDemoApp).**
-
-## Table of Contents
-
- * [Installation](#installation)
- * [Symfony features included](#symfony-features-included)
-    * [AbstractContainerAwareField class](#class-abstractcontainerawarefield)
-    * [Service method as callable](#service-method-as-callable)
-    * [Security](#security)
- * [Documentation](#documentation)
-
+- ✅ **Full RFC Specification Compliance** - Complete GraphQL specification implementation
+- ✅ **Symfony 7.4+ Support** - Modern PHP 8.4+ with strict typing
+- ✅ **Security First** - Built-in field and operation-level access control
+- ✅ **Performance Optimized** - DoS protection with payload size limits
+- ✅ **Batch Query Support** - Handle single and batch GraphQL requests efficiently
+- ✅ **Event-Driven** - Pre/post-resolve events for custom logic
+- ✅ **Container Integration** - Full Symfony container awareness for fields
+- ✅ **Well-Tested** - 53+ unit and integration tests with excellent coverage
 
 ## Installation
 
-We assume you have `composer`, if you're not – install it from the [official website](https://getcomposer.org/doc/00-intro.md#installation-linux-unix-osx).  
-If you need any help installing Symfony framework – here's the link [http://symfony.com/doc/current/book/installation.html](http://symfony.com/doc/current/book/installation.html).
-> Shortcut to install Symfony: `composer create-project symfony/framework-standard-edition my_project_name`
+### Prerequisites
+- PHP 8.4+
+- Symfony 7.4+
+- Composer
 
-Once you have your composer up and running – you're ready to install the GraphQL Bundle.   
-Go to your project folder and run:
-```sh
+### Install the bundle
+
+```bash
 composer require youshido/graphql-bundle
 ```
 
-Then enable bundle in your `app/AppKernel.php`
+### Register the bundle
+
+In your `config/bundles.php`:
 ```php
-new Youshido\GraphQLBundle\GraphQLBundle(),
+return [
+    // ... other bundles
+    Youshido\GraphQLBundle\GraphQLBundle::class => ['all' => true],
+];
 ```
 
-Add the routing reference to the `app/config/routing.yml`:
+### Configure routing
+
+In your `config/routes.yaml`:
 ```yaml
 graphql:
     resource: "@GraphQLBundle/Controller/"
 ```
-or 
-```yaml
-graphql:
-    resource: "@GraphQLBundle/Resources/config/route.xml"
-```
-If you don't have a web server configured you can use a bundled version, simply run `php bin/console server:run`.
 
-Let's check if you've done everything right so far – try to access url `localhost:8000/graphql`.  
-You should get a JSON response with the following error:
-```js
-{"errors":[{"message":"Schema class does not exist"}]}
-```
+## Quick Start
 
-That's because there was no GraphQL Schema specified for the processor yet. You need to create a GraphQL Schema class and set it inside your `app/config/config.yml` file.
+### 1. Create a GraphQL Schema
 
-> There is a way where you can use inline approach and do not create a Schema class, in order to do that you have to define your own GraphQL controller and use a `->setSchema` method of the processor to set the Schema.  
-
-The fastest way to create a Schema class is to use a generator shipped with this bundle:
-```sh
-php bin/console graphql:configure AppBundle
-```
-Here *AppBundle* is a name of the bundle where the class will be generated in.  
-You will be requested for a confirmation to create a class.
- 
-After you've added parameters to the config file, try to access the following link in the browser – `http://localhost:8000/graphql?query={hello(name:World)}`
-
-> Alternatively, you can execute the same request using CURL client in your console  
-> `curl http://localhost:8000/graphql --data "query={ hello(name: \"World\") }"`
-
-Successful response from a test Schema will be displayed:
-```js
-{"data":{"hello":"world!"}}
-```
-
-That means you have GraphQL Bundle for the Symfony Framework configured and now can architect your GraphQL Schema:
-
-Next step would be to link assets for GraphiQL Explorer by executing:
-```sh
-php bin/console assets:install --symlink
-```
-Now you can access it at `http://localhost:8000/graphql/explorer`
-
-## Symfony features
-### Class AbstractContainerAwareField:
-AbstractContainerAwareField class used for auto passing container to field, add ability to use container in resolve function:
 ```php
-class RootDirField extends AbstractContainerAwareField
+namespace App\GraphQL;
+
+use Youshido\GraphQL\Schema\AbstractSchema;
+use Youshido\GraphQL\Type\ListType;
+use Youshido\GraphQL\Type\NonNullType;
+use Youshido\GraphQL\Type\StringType;
+
+class AppSchema extends AbstractSchema
 {
-
-    /**
-     * @inheritdoc
-     */
-    public function getType()
+    public function build($config): void
     {
-        return new StringType();
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function resolve($value, array $args, ResolveInfo $info)
-    {
-        return $this->container->getParameter('kernel.root_dir');
-    }
-
-    /**
-     * @inheritdoc
-     */
-    public function getName()
-    {
-        return 'rootDir';
-    }
-```
-
-### Service method as callable:
-Ability to pass service method as resolve callable:
-```php
-$config->addField(new Field([
-    'name'    => 'cacheDir',
-    'type'    => new StringType(),
-    'resolve' => ['@resolve_service', 'getCacheDir']
-]))
-```
-### Events:
-You can use the Symfony Event Dispatcher to get control over specific events which happen when resolving graphql queries.
-
-```php
-namespace ...\...\..;
-
-use Youshido\GraphQL\Event\ResolveEvent;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-
-class MyGraphQLResolveEventSubscriber implements EventSubscriberInterface
-{
-    public static function getSubscribedEvents()
-    {
-        return [
-            'graphql.pre_resolve'  => 'onPreResolve',
-            'graphql.post_resolve' => 'onPostResolve'
-        ];
-    }
-
-    public function onPreResolve(ResolveEvent $event)
-    {
-		//$event->getFields / $event->getAstFields()..
-    }
-
-    public function onPostResolve(ResolveEvent $event)
-    {
-		//$event->getFields / $event->getAstFields()..
+        $config->query(new RootQuery());
     }
 }
 ```
-#### Configuration
 
-Now configure you subscriber so events will be caught. This can be done in Symfony by either XML, Yaml or PHP.
+### 2. Configure the schema in `config/packages/graphql.yaml`
 
-```xml
-<service id="my_own_bundle.event_subscriber.my_graphql_resolve_event_subscriber" class="...\...\...\MyGraphQLResolveEventSubscriber">
-	<tag name="graphql.event_subscriber" />
-</service>
-```
-
-### Security:
-Bundle provides two ways to guard your application: using black/white operation list or using security voter.
-
-#### Black/white list
-Used to guard some root operations. To enable it you need to write following in your config.yml file:
 ```yaml
 graphql:
-
-  #...
-
-  security:
-    black_list: ['hello'] # or white_list: ['hello']
-
+    schema_class: App\GraphQL\AppSchema
+    response:
+        json_pretty: true
+        headers:
+            'Access-Control-Allow-Origin': '*'
+    security:
+        guard:
+            field: false
+            operation: false
 ```
-#### Using security voter:
-Used to guard any field resolve and support two types of guards: root operation and any other field resolving (including internal fields, scalar type fields, root operations). To guard root operation with your specified logic you need to enable it in configuration and use  `SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE` attribute. The same things need to do to enable field guard, but in this case use `SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE` attribute.
-[Official documentation](http://symfony.com/doc/current/security/voters.html) about voters.
 
-> Note: Enabling field security lead to a significant reduction in performance
+### 3. Test your endpoint
 
-Config example:
+Access `http://localhost:8000/graphql` or use curl:
+
+```bash
+curl http://localhost:8000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ hello }"}'
+```
+
+## Core Features
+
+### Security: Field & Operation Guards
+
+Control access at the field and operation level:
+
 ```yaml
 graphql:
     security:
         guard:
-            field: true # for any field security
-            operation: true # for root level security
+            field: true        # Enable field-level security
+            operation: true    # Enable operation-level security
+        black_list: ['admin']  # Block specific operations
+        white_list: ['public'] # Allow only specific operations
 ```
 
-Voter example (add in to your `services.yml` file with tag `security.voter`):
+Implement a security voter:
+
 ```php
-use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
-use Symfony\Component\Security\Core\Authorization\Voter\Voter;
-use Youshido\GraphQL\Execution\ResolveInfo;
 use Youshido\GraphQLBundle\Security\Manager\SecurityManagerInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Voter;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 
 class GraphQLVoter extends Voter
 {
-
-    /**
-     * @inheritdoc
-     */
-    protected function supports($attribute, $subject)
+    protected function supports($attribute, $subject): bool
     {
-        return in_array($attribute, [SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE, SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE]);
+        return in_array($attribute, [
+            SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE,
+            SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE,
+        ]);
     }
 
-    /**
-     * @inheritdoc
-     */
-    protected function voteOnAttribute($attribute, $subject, TokenInterface $token)
+    protected function voteOnAttribute($attribute, $subject, TokenInterface $token): bool
     {
-        // your own validation logic here
-
-        if (SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE == $attribute) {
-            /** @var $subject ResolveInfo */
-            if ($subject->getField()->getName() == 'hello') {
-                return false;
-            }
-
-            return true;
-        } elseif (SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE == $attribute) {
-            /** @var $subject Query */
-            if ($subject->getName() == '__schema') {
-                return true;
-            }
+        if ($attribute === SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE) {
+            // Field-level access control
+            return true; // Allow or deny based on your logic
         }
+        
+        return true;
     }
 }
 ```
 
+### Container-Aware Fields
 
-## GraphiQL extension:
-To run [graphiql extension](https://github.com/graphql/graphiql) just try to access to `http://your_domain/graphql/explorer`
+Access Symfony services directly in field resolvers:
+
+```php
+use Youshido\GraphQLBundle\Field\AbstractContainerAwareField;
+use Youshido\GraphQL\Type\StringType;
+
+class UserField extends AbstractContainerAwareField
+{
+    public function getType(): StringType
+    {
+        return new StringType();
+    }
+
+    public function resolve($value, array $args): string
+    {
+        // Access container services
+        $logger = $this->container->get('logger');
+        $logger->info('Resolving user field');
+        
+        return 'user_data';
+    }
+
+    public function getName(): string
+    {
+        return 'user';
+    }
+}
+```
+
+### Service Method Resolvers
+
+Use Symfony services as field resolvers:
+
+```php
+use Youshido\GraphQL\Field\Field;
+use Youshido\GraphQL\Type\StringType;
+
+$query->addField(new Field([
+    'name' => 'cache_dir',
+    'type' => new StringType(),
+    'resolve' => ['@my_resolver_service', 'getCacheDir'] // Call service method
+]));
+```
+
+### Event Hooks
+
+Monitor and transform GraphQL resolution:
+
+```php
+use Youshido\GraphQLBundle\Event\ResolveEvent;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+
+class GraphQLResolveSubscriber implements EventSubscriberInterface
+{
+    public static function getSubscribedEvents(): array
+    {
+        return [
+            'graphql.pre_resolve'  => 'onPreResolve',
+            'graphql.post_resolve' => 'onPostResolve',
+        ];
+    }
+
+    public function onPreResolve(ResolveEvent $event): void
+    {
+        // Implement caching, logging, or validation
+    }
+
+    public function onPostResolve(ResolveEvent $event): void
+    {
+        // Transform results, log queries, etc.
+    }
+}
+```
+
+Register in `config/services.yaml`:
+```yaml
+App\Subscriber\GraphQLResolveSubscriber:
+    tags:
+        - { name: 'graphql.event_subscriber' }
+```
+
+## Configuration Reference
+
+```yaml
+graphql:
+    # Your main GraphQL schema class
+    schema_class: App\GraphQL\AppSchema
+    
+    # Optional: Service ID for the schema (alternative to schema_class)
+    schema_service: ~
+    
+    # Optional: Logger service ID for GraphQL queries
+    logger: ~
+    
+    # Maximum complexity threshold (0 = unlimited)
+    max_complexity: 0
+    
+    response:
+        # Pretty-print JSON responses
+        json_pretty: false
+        
+        # Custom response headers
+        headers:
+            'Content-Type': 'application/json'
+            'Access-Control-Allow-Origin': '*'
+    
+    security:
+        guard:
+            field: false        # Enable field-level security
+            operation: false    # Enable operation-level security
+        
+        # Blacklist operations (blocks specified operations)
+        black_list: []
+        
+        # Whitelist operations (allows only specified operations)
+        white_list: []
+```
+
+## Performance & Security
+
+### Payload Size Limits
+
+The bundle enforces a 10MB maximum payload size by default to prevent DoS attacks:
+
+```php
+// Thrown as InvalidArgumentException with message containing max size
+$parser = new PayloadParser($request);
+$result = $parser->parse();
+```
+
+### Best Practices
+
+1. **Enable field security for sensitive data** - Use security voters for fine-grained control
+2. **Implement rate limiting** - Add Symfony rate limiters to your routes
+3. **Monitor complexity** - Set `max_complexity` threshold to prevent expensive queries
+4. **Use HTTPS in production** - Always encrypt GraphQL endpoints in production
+5. **Validate input** - Leverage GraphQL schema validation for type safety
+
+## Recent Improvements (v2.x)
+
+✨ **Security Fixes**
+- Fixed batch query state mutation preventing variable leakage between queries
+- Improved error handling with HTTP 500 for configuration errors
+- Enhanced exception messages with field/operation context
+
+✨ **Performance & DoS Protection**
+- Added configurable payload size limits (10MB default)
+- Optimized variable parsing (eliminated duplication)
+
+✨ **Code Quality**
+- Created Constants class for centralized configuration
+- Fixed parameter naming inconsistencies
+- Removed legacy Symfony 4.2 compatibility code
+
+See [CHANGELOG.md](CHANGELOG.md) for all improvements.
+
+## Testing
+
+Run the test suite:
+
+```bash
+docker compose up -d
+docker exec app composer install
+docker exec -w /var/www/html app ./vendor/bin/phpunit
+```
+
+The bundle includes 53+ tests covering:
+- Query and batch query parsing
+- Security voters and guards
+- Field and operation resolution
+- Error handling and edge cases
 
 ## Documentation
-All detailed documentation is available on the main GraphQL repository – http://github.com/youshido/graphql/.
+
+- [Official GraphQL Specification](https://spec.graphql.org/)
+- [99designs/graphql Documentation](https://github.com/99designs/graphql-php)
+- [Symfony Documentation](https://symfony.com/doc/)
+
+## Contributing
+
+Contributions are welcome! Please ensure:
+- All tests pass: `./vendor/bin/phpunit`
+- Code follows PSR-12 standards
+- New features include tests
+
+## License
+
+See the LICENSE file in the repository.
+
+## Support
+
+For issues, questions, or feature requests, please visit the [GitHub repository](https://github.com/youshido/graphql-bundle).
+

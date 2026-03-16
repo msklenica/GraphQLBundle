@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Date: 23.05.16
  *
@@ -12,10 +14,7 @@ use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareTrait;
 use Youshido\GraphQL\Field\AbstractField as BaseAbstractField;
 
-
 abstract class AbstractContainerAwareField extends BaseAbstractField implements ContainerAwareInterface
 {
-
     use ContainerAwareTrait;
-
 }

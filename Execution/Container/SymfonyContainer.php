@@ -1,71 +1,91 @@
 <?php
-/**
- * This file is a part of PhpStorm project.
- *
- * @author Alexandr Viniychuk <a@viniychuk.com>
- * created: 9/23/16 10:08 PM
- */
+
+declare(strict_types=1);
 
 namespace Youshido\GraphQLBundle\Execution\Container;
 
-
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
-use Symfony\Component\DependencyInjection\ContainerAwareTrait;
+use Symfony\Component\DependencyInjection\ContainerInterface as SymfonyContainerInterface;
 use Youshido\GraphQL\Execution\Container\ContainerInterface;
 
-class SymfonyContainer implements ContainerInterface, ContainerAwareInterface
+/**
+ * Wraps a Symfony DependencyInjection Container to implement GraphQL-php's ContainerInterface.
+ *
+ * This adapter class bridges the Symfony container to the GraphQL-php execution context.
+ * Only the required interface methods are implemented here. Use getSymfonyContainer()
+ * for access to Symfony-specific methods like setParameter(), getParameter(), etc.
+ */
+class SymfonyContainer implements ContainerInterface
 {
-    use ContainerAwareTrait;
+    public function __construct(
+        private SymfonyContainerInterface $container
+    ) {}
 
+    public function setContainer(SymfonyContainerInterface $container): self
+    {
+        $this->container = $container;
+        return $this;
+    }
+
+    /**
+     * Get a service from the container.
+     *
+     * @param string $id Service identifier
+     * @return mixed The service instance
+     */
     public function get($id)
     {
         return $this->container->get($id);
     }
 
+    /**
+     * Set a service in the container.
+     *
+     * @param string $id Service identifier
+     * @param mixed $value The service instance
+     * @return self
+     */
     public function set($id, $value)
     {
         $this->container->set($id, $value);
         return $this;
     }
 
+    /**
+     * Remove a service from the container.
+     *
+     * Not supported for Symfony containers.
+     *
+     * @param string $id Service identifier
+     * @return void
+     * @throws \RuntimeException
+     */
     public function remove($id)
     {
         throw new \RuntimeException('Remove method is not available for Symfony container');
     }
 
+    /**
+     * Check if a service exists in the container.
+     *
+     * @param string $id Service identifier
+     * @return bool
+     */
     public function has($id)
     {
         return $this->container->has($id);
     }
 
-    public function initialized($id)
-    {
-        return $this->container->initialized($id);
-    }
-
-    public function setParameter($name, $value)
-    {
-        $this->container->setParameter($name, $value);
-        return $this;
-    }
-
-    public function getParameter($name)
-    {
-        return $this->container->getParameter($name);
-    }
-
-    public function hasParameter($name)
-    {
-        return $this->container->hasParameter($name);
-    }
-
     /**
-     * Exists temporarily for ContainerAwareField that is to be removed in 1.5
-     * @return mixed
+     * Get the underlying Symfony container instance.
+     *
+     * Use this method to access Symfony-specific functionality like:
+     * - setParameter()/getParameter() for container parameters
+     * - initialized() to check if a service is initialized
+     *
+     * @return SymfonyContainerInterface The Symfony container instance
      */
-    public function getSymfonyContainer()
+    public function getSymfonyContainer(): SymfonyContainerInterface
     {
         return $this->container;
     }
-
 }

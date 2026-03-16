@@ -34,7 +34,10 @@ class GraphQLExtensionTest extends TestCase
         $this->assertEquals(
             [
                 'Access-Control-Allow-Origin' => '*',
-                'Access-Control-Allow-Headers' => 'Content-Type',
+                'Access-Control-Allow-Headers' => 'Content-Type,Authorization',
+                'Access-Control-Allow-Methods' => 'GET,POST,OPTIONS',
+                'Access-Control-Max-Age' => '3600',
+                'Content-Type' => 'application/json',
             ],
             $container->getParameter('graphql.response.headers')
         );

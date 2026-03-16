@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Youshido\GraphQLBundle\Security\Manager;
 
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Youshido\GraphQL\Execution\ResolveInfo;
 use Youshido\GraphQL\Parser\Ast\Query;
 
@@ -12,46 +15,16 @@ use Youshido\GraphQL\Parser\Ast\Query;
  */
 interface SecurityManagerInterface
 {
-
     public const RESOLVE_ROOT_OPERATION_ATTRIBUTE = 'RESOLVE_ROOT_OPERATION';
     public const RESOLVE_FIELD_ATTRIBUTE          = 'RESOLVE_FIELD';
 
-    /**
-     * @param $attribute string
-     *
-     * @return bool
-     */
-    public function isSecurityEnabledFor($attribute);
+    public function isSecurityEnabledFor(string $attribute): bool;
 
-    /**
-     * @param ResolveInfo $resolveInfo
-     *
-     * @return bool
-     */
-    public function isGrantedToFieldResolve(ResolveInfo $resolveInfo);
+    public function isGrantedToFieldResolve(ResolveInfo $resolveInfo): bool;
 
-    /**
-     * @param Query $query
-     *
-     * @return bool
-     */
-    public function isGrantedToOperationResolve(Query $query);
+    public function isGrantedToOperationResolve(Query $query): bool;
 
-    /**
-     * @param ResolveInfo $resolveInfo
-     *
-     * @return mixed
-     *
-     * @throw \Exception
-     */
-    public function createNewFieldAccessDeniedException(ResolveInfo $resolveInfo);
+    public function createNewFieldAccessDeniedException(ResolveInfo $resolveInfo): AccessDeniedException;
 
-    /**
-     * @param Query $query
-     *
-     * @return mixed
-     *
-     * @throw \Exception
-     */
-    public function createNewOperationAccessDeniedException(Query $query);
+    public function createNewOperationAccessDeniedException(Query $query): AccessDeniedException;
 }

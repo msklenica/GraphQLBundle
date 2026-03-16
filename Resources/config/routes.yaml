@@ -1,0 +1,9 @@
+youshido_graphql_graphql_default:
+  path: /graphql
+  defaults: { _controller: 'Youshido\GraphQLBundle\Controller\GraphQLController::defaultAction' }
+  methods: [GET, POST, OPTIONS]
+
+youshido_graphql_graphqlexplorer_explorer:
+  path: /graphql/explorer
+  defaults: { _controller: 'Youshido\GraphQLBundle\Controller\GraphQLExplorerController::explorerAction' }
+  methods: [GET, POST]
