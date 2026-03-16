@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Date: 9/12/16
  *
@@ -7,53 +10,48 @@
 
 namespace Youshido\GraphQLBundle\Security\Voter;
 
-
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 use Youshido\GraphQLBundle\Security\Manager\SecurityManagerInterface;
 
 abstract class AbstractListVoter extends Voter
 {
+    private array $list = [];
 
-    /** @var string[] */
-    private $list = [];
+    private bool $enabled = false;
 
-    /** @var bool */
-    private $enabled = false;
-
-    protected function supports($attribute, $subject): bool
+    protected function supports(string $attribute, mixed $subject): bool
     {
-        return $this->enabled && $attribute == SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE;
+        return $this->enabled && $attribute === SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE;
     }
 
-    protected function isLoggedInUser(TokenInterface $token)
+    protected function isLoggedInUser(TokenInterface $token): bool
     {
         return is_object($token->getUser());
     }
 
-    /**
-     * @param array $list
-     */
-    public function setList(array  $list)
+    public function setList(array $list): self
     {
         $this->list = $list;
+        return $this;
     }
 
     /**
-     * @return \string[]
+     * @return array<int, string>
      */
-    public function getList()
+    public function getList(): array
     {
         return $this->list;
     }
 
-    protected function inList($query)
+    protected function inList(mixed $query): bool
     {
-        return in_array($query, $this->list);
+        return in_array($query, $this->list, true);
     }
 
-    public function setEnabled($enabled)
+    public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+        return $this;
     }
 }

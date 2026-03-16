@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Youshido\GraphQLBundle\Command;
 
@@ -15,20 +16,15 @@ class GraphQLConfigureCommand extends Command
 {
     public const PROJECT_NAMESPACE = 'App';
 
-    /** @var Container */
-    protected $container;
-
-    public function __construct(ContainerInterface $container)
+    public function __construct(protected Container $container)
     {
-        $this->container = $container;
-
         parent::__construct();
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('graphql:configure')
@@ -39,12 +35,13 @@ class GraphQLConfigureCommand extends Command
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $isComposerCall = $input->getOption('composer');
 
-        $rootDir    = $this->container->getParameter('kernel.root_dir');
-        $configFile = $rootDir . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'config/packages/graphql.yml';
+        $projectDir = $this->container->getParameter('kernel.project_dir');
+        $rootDir    = $projectDir . DIRECTORY_SEPARATOR . 'src';
+        $configFile = $projectDir . DIRECTORY_SEPARATOR . 'config/packages/graphql.yml';
 
         $className       = 'Schema';
         $schemaNamespace = self::PROJECT_NAMESPACE . '\\GraphQL';
@@ -59,11 +56,13 @@ class GraphQLConfigureCommand extends Command
         } else {
             $question = new ConfirmationQuestion(sprintf('Confirm creating class at %s ? [Y/n]', $schemaNamespace . '\\' . $className), true);
             if (!$inputHelper->ask($input, $output, $question)) {
-                return;
+                return Command::SUCCESS;
             }
 
             if (!is_dir($graphqlPath)) {
-                mkdir($graphqlPath, 0777, true);
+                if (!mkdir($graphqlPath, 0755, true) && !is_dir($graphqlPath)) {
+                    throw new \RuntimeException(sprintf('Directory "%s" was not created', $graphqlPath));
+                }
             }
             file_put_contents($classPath, $this->getSchemaClassTemplate($schemaNamespace, $className));
 
@@ -73,13 +72,16 @@ class GraphQLConfigureCommand extends Command
             if (!file_exists($configFile)) {
                 $question = new ConfirmationQuestion(sprintf('Config file not found (look at %s). Create it? [Y/n]', $configFile), true);
                 if (!$inputHelper->ask($input, $output, $question)) {
-                    return;
+                    return Command::SUCCESS;
                 }
 
                 touch($configFile);
             }
 
-            $originalConfigData = file_get_contents($configFile);
+            $originalConfigData = @file_get_contents($configFile);
+            if ($originalConfigData === false) {
+                throw new \RuntimeException(sprintf('Unable to read configuration file "%s"', $configFile));
+            }
             if (!str_contains($originalConfigData, 'graphql')) {
                 $projectNameSpace = self::PROJECT_NAMESPACE;
                 $configData       = <<<CONFIG
@@ -107,14 +109,14 @@ CONFIG;
                 $output->writeln('GraphQL default route was found.');
             }
         }
+
+        return Command::SUCCESS;
     }
 
     /**
-     * @return null|string
-     *
      * @throws \Exception
      */
-    protected function getMainRouteConfig()
+    protected function getMainRouteConfig(): string|null
     {
         $routerResources = $this->container->get('router')->getRouteCollection()->getResources();
         foreach ($routerResources as $resource) {
@@ -128,10 +130,9 @@ CONFIG;
     }
 
     /**
-     * @return bool
      * @throws \Exception
      */
-    protected function graphQLRouteExists()
+    protected function graphQLRouteExists(): bool
     {
         $routerResources = $this->container->get('router')->getRouteCollection()->getResources();
         foreach ($routerResources as $resource) {
@@ -144,11 +145,7 @@ CONFIG;
         return false;
     }
 
-    protected function generateRoutes()
-    {
-    }
-
-    protected function getSchemaClassTemplate($nameSpace, $className = 'Schema')
+    protected function getSchemaClassTemplate(string $nameSpace, string $className = 'Schema'): string
     {
         $tpl = <<<TEXT
 <?php

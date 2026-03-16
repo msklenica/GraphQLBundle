@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Date: 23.05.16
  *
@@ -13,21 +15,18 @@ use Youshido\GraphQL\Validator\ConfigValidator\Rules\TypeValidationRule as BaseT
 
 class TypeValidationRule extends BaseTypeValidationRule
 {
-
-    public function validate($data, $ruleInfo)
+    public function validate(mixed $data, mixed $ruleInfo): bool
     {
         if (!is_string($ruleInfo)) {
             return false;
         }
 
-        if (($ruleInfo == TypeService::TYPE_CALLABLE) && (
+        if (($ruleInfo === TypeService::TYPE_CALLABLE) && (
                 is_callable($data) ||
-                (is_array($data) && count($data) == 2 && str_starts_with((string) $data[0], '@')))
+                (is_array($data) && count($data) === 2 && str_starts_with((string) $data[0], '@')))
         ) {
             return true;
         }
         return parent::validate($data, $ruleInfo);
     }
-
-
 }

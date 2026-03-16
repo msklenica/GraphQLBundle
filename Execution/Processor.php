@@ -1,10 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Youshido\GraphQLBundle\Execution;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerAwareInterface;
-use Symfony\Component\HttpKernel\Kernel;
 use Youshido\GraphQL\Execution\Context\ExecutionContextInterface;
 use Youshido\GraphQL\Execution\Processor as BaseProcessor;
 use Youshido\GraphQL\Execution\ResolveInfo;
@@ -23,19 +24,10 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class Processor extends BaseProcessor
 {
+    private ?LoggerInterface $logger = null;
 
-    /** @var  LoggerInterface */
-    private $logger;
+    private ?SecurityManagerInterface $securityManager = null;
 
-    /** @var  SecurityManagerInterface */
-    private $securityManager;
-
-    /**
-     * Constructor.
-     *
-     * @param ExecutionContextInterface $executionContext
-     * @param EventDispatcherInterface $eventDispatcher
-     */
     public function __construct(ExecutionContextInterface $executionContext, private readonly EventDispatcherInterface $eventDispatcher)
     {
         $this->executionContext = $executionContext;
@@ -43,46 +35,81 @@ class Processor extends BaseProcessor
         parent::__construct($executionContext->getSchema());
     }
 
-    /**
-     * @param SecurityManagerInterface $securityManger
-     *
-     * @return Processor
-     */
-    public function setSecurityManager(SecurityManagerInterface $securityManger)
+    public function setSecurityManager(SecurityManagerInterface $securityManager): self
     {
-        $this->securityManager = $securityManger;
+        $this->securityManager = $securityManager;
 
         return $this;
     }
 
-    public function processPayload($payload, $variables = [], $reducers = [])
+    /**
+     * Process a GraphQL query payload with optional variables.
+     *
+     * Main entry point for executing GraphQL queries. Logs the query if a logger
+     * is configured, then delegates to the parent processor for execution.
+     *
+     * @param mixed $payload The GraphQL query string or query document
+     * @param array $variables Variables to pass to the query
+     * @param array $reducers Optional reducers (passed to parent processor)
+     */
+    public function processPayload(mixed $payload, array $variables = [], array $reducers = []): void
     {
         if ($this->logger) {
-            $this->logger->debug(sprintf('GraphQL query: %s', $payload), (array)$variables);
+            $this->logger->debug(sprintf('GraphQL query: %s', $payload), $variables);
         }
 
         parent::processPayload($payload, $variables);
     }
 
-    protected function resolveQuery(Query $query)
+    /**
+     * Resolve a GraphQL query operation with security validation.
+     *
+     * Checks operation-level security (RESOLVE_ROOT_OPERATION) before executing
+     * the query. This allows blocking or allowing entire operations based on
+     * authentication/authorization rules.
+     *
+     * @param Query $query The query operation to execute
+     * @return mixed The query execution result
+     *
+     * @throws AccessDeniedException If operation-level security check fails
+     */
+    protected function resolveQuery(Query $query): mixed
     {
         $this->assertClientHasOperationAccess($query);
 
         return parent::resolveQuery($query);
     }
 
-    private function dispatchResolveEvent(ResolveEvent $event, $name){
-        $major = Kernel::MAJOR_VERSION;
-        $minor = Kernel::MINOR_VERSION;
-
-        if($major > 4 || ($major === 4 && $minor >= 3)){
-            $this->eventDispatcher->dispatch($event, $name);
-        }else{
-            $this->eventDispatcher->dispatch($name, $event);
-        }
+    private function dispatchResolveEvent(ResolveEvent $event, string $name): void
+    {
+        // Symfony 7.4+ uses dispatch(Event $event, string $eventName)
+        $this->eventDispatcher->dispatch($event, $name);
     }
 
-    protected function doResolve(FieldInterface $field, AstFieldInterface $ast, $parentValue = null)
+    /**
+     * Resolve a GraphQL field with security checks, events, and service resolution.
+     *
+     * This is the core field resolution method. It performs the following steps:
+     * 1. Parses field arguments from the AST
+     * 2. Dispatches pre-resolve event for monitoring/caching
+     * 3. Validates field access via security manager
+     * 4. Sets container on fields that need it (ContainerAwareInterface)
+     * 5. Resolves the field value using:
+     *    - Service-based resolver (@service_name::method)
+     *    - Callable resolver (closure/function)
+     *    - Property accessor (direct property access)
+     *    - Field's resolve method
+     * 6. Dispatches post-resolve event for transformation/logging
+     *
+     * @param FieldInterface $field The field being resolved
+     * @param AstFieldInterface $ast The AST representation of the field
+     * @param mixed $parentValue The parent object/value context
+     * @return mixed The resolved field value
+     *
+     * @throws ResolveException If a service reference is invalid or method doesn't exist
+     * @throws AccessDeniedException If security checks fail
+     */
+    protected function doResolve(FieldInterface $field, AstFieldInterface $ast, mixed $parentValue = null): mixed
     {
         /** @var AstQuery|AstField $ast */
         $arguments = $this->parseArgumentsValues($field, $ast);
@@ -94,8 +121,8 @@ class Processor extends BaseProcessor
         $resolveInfo = $this->createResolveInfo($field, $astFields);
         $this->assertClientHasFieldAccess($resolveInfo);
 
-        if (in_array('Symfony\Component\DependencyInjection\ContainerAwareInterface', class_implements($field))) {
-            /** @var $field ContainerAwareInterface */
+        if (in_array(ContainerAwareInterface::class, class_implements($field) ?: [])) {
+            /** @var ContainerAwareInterface $field */
             $field->setContainer($this->executionContext->getContainer()->getSymfonyContainer());
         }
 
@@ -128,7 +155,16 @@ class Processor extends BaseProcessor
         return $event->getResolvedValue();
     }
 
-    private function assertClientHasOperationAccess(Query $query)
+    /**
+     * Validate that the client has access to execute the GraphQL operation.
+     *
+     * Checks if operation-level security is enabled and if the current user
+     * is granted permission to resolve this operation via the security manager.
+     *
+     * @param Query $query The query operation to validate
+     * @throws AccessDeniedException If security check fails and is enabled
+     */
+    private function assertClientHasOperationAccess(Query $query): void
     {
         if ($this->securityManager->isSecurityEnabledFor(SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE)
             && !$this->securityManager->isGrantedToOperationResolve($query)
@@ -137,7 +173,16 @@ class Processor extends BaseProcessor
         }
     }
 
-    private function assertClientHasFieldAccess(ResolveInfo $resolveInfo)
+    /**
+     * Validate that the client has access to resolve the GraphQL field.
+     *
+     * Checks if field-level security is enabled and if the current user
+     * is granted permission to resolve this field via the security manager.
+     *
+     * @param ResolveInfo $resolveInfo Information about the field being resolved
+     * @throws AccessDeniedException If security check fails and is enabled
+     */
+    private function assertClientHasFieldAccess(ResolveInfo $resolveInfo): void
     {
         if ($this->securityManager->isSecurityEnabledFor(SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE)
             && !$this->securityManager->isGrantedToFieldResolve($resolveInfo)
@@ -146,13 +191,29 @@ class Processor extends BaseProcessor
         }
     }
 
-
-    private function isServiceReference($resolveFunc)
+    /**
+     * Check if a resolver function is a service reference.
+     *
+     * Service references use the syntax ['@service_name', 'methodName'] to delegate
+     * field resolution to a registered service container service.
+     *
+     * @param mixed $resolveFunc The resolver function to check
+     * @return bool True if this is a service reference, false otherwise
+     */
+    private function isServiceReference(mixed $resolveFunc): bool
     {
-        return is_array($resolveFunc) && count($resolveFunc) == 2 && str_starts_with((string) $resolveFunc[0], '@');
+        return is_array($resolveFunc) && count($resolveFunc) === 2 && str_starts_with((string) $resolveFunc[0], '@');
     }
 
-    public function setLogger($logger = null)
+    /**
+     * Set an optional logger instance for query logging.
+     *
+     * If a logger is set, GraphQL queries will be logged at DEBUG level
+     * along with their variables for debugging and monitoring.
+     *
+     * @param LoggerInterface|null $logger Optional PSR-3 logger instance
+     */
+    public function setLogger(?LoggerInterface $logger = null): void
     {
         $this->logger = $logger;
     }

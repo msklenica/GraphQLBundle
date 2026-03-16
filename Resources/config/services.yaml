@@ -1,0 +1,71 @@
+parameters:
+  graphql.processor.class: 'Youshido\GraphQLBundle\Execution\Processor'
+  graphql.execution_context.class: 'Youshido\GraphQLBundle\Execution\Context\ExecutionContext'
+  graphql.security_manager.class: 'Youshido\GraphQLBundle\Security\Manager\DefaultSecurityManager'
+
+services:
+  graphql.schema:
+    synthetic: true
+    public: true
+
+  graphql.processor:
+    class: '%graphql.processor.class%'
+    public: true
+    arguments:
+      - '@graphql.execution_context'
+      - '@graphql.event_dispatcher'
+    calls:
+      - method: setSecurityManager
+        arguments:
+          - '@graphql.security_manager'
+
+  graphql.event_dispatcher:
+    class: Symfony\Component\EventDispatcher\EventDispatcher
+    arguments:
+      - '@service_container'
+
+  graphql.execution_context:
+    class: '%graphql.execution_context.class%'
+    arguments:
+      - '@graphql.schema'
+    calls:
+      - method: setContainer
+        arguments:
+          - '@graphql.symfony_container_bridge'
+
+  graphql.symfony_container_bridge:
+    class: Youshido\GraphQLBundle\Execution\Container\SymfonyContainer
+    calls:
+      - method: setContainer
+        arguments:
+          - '@service_container'
+
+  graphql.security_manager:
+    class: '%graphql.security_manager.class%'
+    lazy: true
+    arguments:
+      - '@security.authorization_checker'
+      - '%graphql.security.guard_config%'
+
+  graphql.security.voter:
+    class: Youshido\GraphQLBundle\Security\Voter\BlacklistVoter
+    public: false
+    tags:
+      - { name: 'security.voter', priority: 255 }
+
+  graphql.command.configure:
+    class: Youshido\GraphQLBundle\Command\GraphQLConfigureCommand
+    tags:
+      - { name: 'console.command', command: 'graphql:configure' }
+    arguments:
+      - '@service_container'
+
+  Youshido\GraphQLBundle\Controller\GraphQLController:
+    public: true
+    arguments:
+      - '@service_container'
+      - '@parameter_bag'
+
+  Youshido\GraphQLBundle\Listener\SampleGraphQLEventListener:
+    tags:
+      - { name: 'graphql.event_listener', event: 'sample.event', method: 'onSampleEvent' }

@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Date: 29.08.16
  *
@@ -7,7 +10,6 @@
 
 namespace Youshido\GraphQLBundle\Security\Manager;
 
-
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Youshido\GraphQL\Execution\ResolveInfo;
@@ -15,12 +17,9 @@ use Youshido\GraphQL\Parser\Ast\Query;
 
 class DefaultSecurityManager implements SecurityManagerInterface
 {
+    private bool $fieldSecurityEnabled = false;
 
-    /** @var bool */
-    private $fieldSecurityEnabled = false;
-
-    /** @var bool */
-    private $rootOperationSecurityEnabled = false;
+    private bool $rootOperationSecurityEnabled = false;
 
     public function __construct(private readonly AuthorizationCheckerInterface $authorizationChecker, array $guardConfig = [])
     {
@@ -28,79 +27,56 @@ class DefaultSecurityManager implements SecurityManagerInterface
         $this->rootOperationSecurityEnabled = $guardConfig['operation'] ?? false;
     }
 
-    /**
-     * @param string $attribute
-     *
-     * @return bool
-     */
-    public function isSecurityEnabledFor($attribute)
+    public function isSecurityEnabledFor(string $attribute): bool
     {
-        if (SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE == $attribute) {
+        if (SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE === $attribute) {
             return $this->fieldSecurityEnabled;
-        } else if (SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE == $attribute) {
+        } elseif (SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE === $attribute) {
             return $this->rootOperationSecurityEnabled;
         }
 
         return false;
     }
 
-    /**
-     * @param boolean $fieldSecurityEnabled
-     */
-    public function setFieldSecurityEnabled($fieldSecurityEnabled)
+    public function setFieldSecurityEnabled(bool $fieldSecurityEnabled): self
     {
         $this->fieldSecurityEnabled = $fieldSecurityEnabled;
+        return $this;
     }
 
-    /**
-     * @param boolean $rootOperationSecurityEnabled
-     */
-    public function setRooOperationSecurityEnabled($rootOperationSecurityEnabled)
+    public function setRootOperationSecurityEnabled(bool $rootOperationSecurityEnabled): self
     {
         $this->rootOperationSecurityEnabled = $rootOperationSecurityEnabled;
+        return $this;
     }
 
-    /**
-     * @param Query $query
-     *
-     * @return bool
-     */
-    public function isGrantedToOperationResolve(Query $query)
+    public function isGrantedToOperationResolve(Query $query): bool
     {
         return $this->authorizationChecker->isGranted(SecurityManagerInterface::RESOLVE_ROOT_OPERATION_ATTRIBUTE, $query);
     }
 
-    /**
-     * @param ResolveInfo $resolveInfo
-     *
-     * @return bool
-     */
-    public function isGrantedToFieldResolve(ResolveInfo $resolveInfo)
+    public function isGrantedToFieldResolve(ResolveInfo $resolveInfo): bool
     {
         return $this->authorizationChecker->isGranted(SecurityManagerInterface::RESOLVE_FIELD_ATTRIBUTE, $resolveInfo);
     }
 
-    /**
-     * @param ResolveInfo $resolveInfo
-     *
-     * @return mixed
-     *
-     * @throw \Exception
-     */
-    public function createNewFieldAccessDeniedException(ResolveInfo $resolveInfo)
+    public function createNewFieldAccessDeniedException(ResolveInfo $resolveInfo): AccessDeniedException
     {
-        return new AccessDeniedException();
+        $fieldName = $resolveInfo->getFieldName();
+        $parentType = $resolveInfo->getParentType();
+        return new AccessDeniedException(sprintf(
+            'Access denied to field "%s" on type "%s"',
+            $fieldName,
+            $parentType?->getName() ?? 'Unknown'
+        ));
     }
 
-    /**
-     * @param Query $query
-     *
-     * @return mixed
-     *
-     * @throw \Exception
-     */
-    public function createNewOperationAccessDeniedException(Query $query)
+    public function createNewOperationAccessDeniedException(Query $query): AccessDeniedException
     {
-        return new AccessDeniedException();
+        $operationName = $query->getName();
+        return new AccessDeniedException(sprintf(
+            'Access denied to operation "%s"',
+            $operationName ?? 'anonymous query'
+        ));
     }
 }

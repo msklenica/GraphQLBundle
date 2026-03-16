@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Youshido\GraphQLBundle\DependencyInjection\Compiler;
 
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
@@ -18,11 +20,9 @@ class GraphQlCompilerPass implements CompilerPassInterface
     /**
      * You can modify the container here before it is dumped to PHP code.
      *
-     * @param ContainerBuilder $container
-     *
-     * @throws \Exception
+     * @throws \RuntimeException
      */
-    public function process(ContainerBuilder $container)
+    public function process(ContainerBuilder $container): void
     {
         if ($loggerAlias = $container->getParameter('graphql.logger')) {
             if (str_starts_with($loggerAlias, '@')) {
@@ -44,34 +44,33 @@ class GraphQlCompilerPass implements CompilerPassInterface
     }
 
     /**
-     * @param ContainerBuilder $container
-     *
-     * @throws \Exception
+     * @throws \RuntimeException
      */
-    private function processSecurityGuard(ContainerBuilder $container)
+    private function processSecurityGuard(ContainerBuilder $container): void
     {
         $guardConfig = $container->getParameter('graphql.security.guard_config');
         $whiteList   = $container->getParameter('graphql.security.white_list');
         $blackList   = $container->getParameter('graphql.security.black_list');
 
-        if ((!$guardConfig['field'] && !$guardConfig['operation']) && ($whiteList || $blackList)) {
-            if ($whiteList && $blackList) {
-                throw new \RuntimeException('Configuration error: Only one white or black list allowed');
-            }
+        // Check that both white and black lists are not configured at the same time
+        if ($whiteList && $blackList) {
+            throw new \RuntimeException('Configuration error: Only one white or black list allowed');
+        }
 
-            $this->addListVoter($container, BlacklistVoter::class, $blackList);
-            $this->addListVoter($container, WhitelistVoter::class, $whiteList);
+        // If lists are configured and security is not explicitly enabled, auto-enable with appropriate voter
+        if ((!$guardConfig['field'] && !$guardConfig['operation']) && ($whiteList || $blackList)) {
+            if ($whiteList) {
+                $this->addListVoter($container, WhitelistVoter::class, $whiteList);
+            } elseif ($blackList) {
+                $this->addListVoter($container, BlacklistVoter::class, $blackList);
+            }
         }
     }
 
     /**
-     * @param ContainerBuilder $container
-     * @param                  $voterClass
-     * @param array            $list
-     *
-     * @throws \Exception
+     * @throws \RuntimeException
      */
-    private function addListVoter(ContainerBuilder $container, $voterClass, array $list)
+    private function addListVoter(ContainerBuilder $container, string $voterClass, array $list): void
     {
         if ($list) {
             $container

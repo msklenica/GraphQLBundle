@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 /**
  * Date: 31.08.16
  *
@@ -7,27 +10,26 @@
 
 namespace Youshido\GraphQLBundle\Controller;
 
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Cache;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 
-class GraphQLExplorerController extends Controller
+#[Route('/graphql/explorer', name: 'youshido_graphql_explorer')]
+class GraphQLExplorerController extends AbstractController
 {
-    /**
-     * @Route("/graphql/explorer")
-     *
-     * @return \Symfony\Component\HttpFoundation\Response
-     */
-    public function explorerAction()
+    #[Route('', name: 'youshido_graphql_explorer_index')]
+    public function explorerAction(): Response
     {
         $response = $this->render('@GraphQLBundle/Feature/explorer.html.twig', [
             'graphQLUrl' => $this->generateUrl('youshido_graphql_graphql_default'),
             'tokenHeader' => 'access-token'
         ]);
 
-        $date = \DateTime::createFromFormat('U', strtotime('tomorrow'), new \DateTimeZone('UTC'));
-        $response->setExpires($date);
-        $response->setPublic();
+        $date = \DateTime::createFromFormat('U', (string) strtotime('tomorrow'), new \DateTimeZone('UTC'));
+        if ($date instanceof \DateTime) {
+            $response->setExpires($date);
+            $response->setPublic();
+        }
 
         return $response;
     }
