@@ -48,17 +48,17 @@ class Processor extends BaseProcessor
      * Main entry point for executing GraphQL queries. Logs the query if a logger
      * is configured, then delegates to the parent processor for execution.
      *
-     * @param mixed $payload The GraphQL query string or query document
+     * @param string $payload The GraphQL query string
      * @param array $variables Variables to pass to the query
      * @param array $reducers Optional reducers (passed to parent processor)
      */
-    public function processPayload(mixed $payload, array $variables = [], array $reducers = []): void
+    public function processPayload(string $payload, array $variables = [], array $reducers = []): self
     {
         if ($this->logger) {
             $this->logger->debug(sprintf('GraphQL query: %s', $payload), $variables);
         }
 
-        parent::processPayload($payload, $variables);
+        return parent::processPayload($payload, $variables, $reducers);
     }
 
     /**
