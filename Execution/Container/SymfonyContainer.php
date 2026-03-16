@@ -16,9 +16,13 @@ use Youshido\GraphQL\Execution\Container\ContainerInterface;
  */
 class SymfonyContainer implements ContainerInterface
 {
+    private ?SymfonyContainerInterface $container = null;
+
     public function __construct(
-        private SymfonyContainerInterface $container
-    ) {}
+        ?SymfonyContainerInterface $container = null
+    ) {
+        $this->container = $container;
+    }
 
     public function setContainer(SymfonyContainerInterface $container): self
     {
@@ -31,9 +35,13 @@ class SymfonyContainer implements ContainerInterface
      *
      * @param string $id Service identifier
      * @return mixed The service instance
+     * @throws \RuntimeException If container is not initialized
      */
     public function get($id)
     {
+        if ($this->container === null) {
+            throw new \RuntimeException('Container has not been initialized. Call setContainer() first.');
+        }
         return $this->container->get($id);
     }
 
@@ -43,9 +51,13 @@ class SymfonyContainer implements ContainerInterface
      * @param string $id Service identifier
      * @param mixed $value The service instance
      * @return self
+     * @throws \RuntimeException If container is not initialized
      */
     public function set($id, $value)
     {
+        if ($this->container === null) {
+            throw new \RuntimeException('Container has not been initialized. Call setContainer() first.');
+        }
         $this->container->set($id, $value);
         return $this;
     }
@@ -69,9 +81,13 @@ class SymfonyContainer implements ContainerInterface
      *
      * @param string $id Service identifier
      * @return bool
+     * @throws \RuntimeException If container is not initialized
      */
     public function has($id)
     {
+        if ($this->container === null) {
+            throw new \RuntimeException('Container has not been initialized. Call setContainer() first.');
+        }
         return $this->container->has($id);
     }
 
@@ -83,9 +99,13 @@ class SymfonyContainer implements ContainerInterface
      * - initialized() to check if a service is initialized
      *
      * @return SymfonyContainerInterface The Symfony container instance
+     * @throws \RuntimeException If container is not initialized
      */
     public function getSymfonyContainer(): SymfonyContainerInterface
     {
+        if ($this->container === null) {
+            throw new \RuntimeException('Container has not been initialized. Call setContainer() first.');
+        }
         return $this->container;
     }
 }
