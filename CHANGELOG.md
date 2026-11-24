@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Security**: Replaced bundled GraphiQL 0.9.2 (`Resources/public/graphiql.min.js`) with GraphiQL **1.4.7** and React/ReactDOM **17.0.2** production UMD builds. Fixes CVE-2021-41248 (schema template injection in GraphiQL < 1.4.7) in the explorer template `Resources/views/Feature/explorer.html.twig`.
+- Added `.gitattributes` excluding `Tests/` from Composer dist archives; `Resources/public` stays packaged.
+
 ### Fixed
 
 - **Security**: Fixed batch query state mutation in PayloadParser where variables from one query could leak to subsequent queries in batch requests (Issue #2)
@@ -38,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed KernelVersionHelperTest test case (associated with removed helper)
 
 ---
+
+## [2.0.2] - 2026-11-24
+
+### Security
+
+- Upgraded the bundled GraphiQL explorer from 0.9.2 to 1.4.1, fixing CVE-2021-41248 (XSS in GraphiQL < 1.4.1).
+- Upgraded the bundled React assets from 15.0.1 to 17.0.2, as required by GraphiQL 1.4.1.
 
 ## [1.0.0] - 2024-XX-XX (Previous Release)
 
