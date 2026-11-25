@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.5] - 2026-11-25
+
+### Fixed
+
+- `graphql.symfony_container_bridge` service failed to instantiate (`Too few arguments to SymfonyContainer::__construct()`), so every GraphQL request returned HTTP 500. The service now injects `@service_container` through the constructor instead of `setContainer()`. Regression in 2.0.2–2.0.4: the 2.0.1 fix was tagged on the unmerged `release/2.0.1` branch and never reached `master`.
+- Added a regression test that instantiates the bridge service.
+
+### Documentation
+
+- README: added "Release Workflow (fork)" section (tag only after merging to `master`).
+
 ## [2.0.4] - 2026-11-24
 
 ### Security

@@ -35,10 +35,8 @@ services:
 
   graphql.symfony_container_bridge:
     class: Youshido\GraphQLBundle\Execution\Container\SymfonyContainer
-    calls:
-      - method: setContainer
-        arguments:
-          - '@service_container'
+    arguments:
+      - '@service_container'
 
   graphql.security_manager:
     class: '%graphql.security_manager.class%'

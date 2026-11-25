@@ -322,6 +322,39 @@ Contributions are welcome! Please ensure:
 - Code follows PSR-12 standards
 - New features include tests
 
+## Release Workflow (fork)
+
+Consumers pull this fork via Composer VCS repository, so **every tag is a release**.
+Composer resolves the highest tag, no matter which branch it sits on.
+
+Rules:
+
+1. Do the work on a `release/X.Y.Z` (or feature) branch and open a PR to `master`.
+2. **Merge first, tag second.** Tag the merge commit on `master`, never the release branch itself.
+   A tag on an unmerged branch is a release that `master` does not contain, so the next release from `master` silently drops those changes.
+3. Before tagging, check that the highest existing tag is already in `master`. This catches fixes left behind on unmerged branches:
+
+   ```bash
+   git checkout master && git pull && git fetch --tags
+   prev=$(git tag --sort=-v:refname | head -1)
+   git merge-base --is-ancestor "$prev" HEAD && echo "OK: $prev is in master" || echo "STOP: $prev is NOT in master"
+   ```
+
+   If it prints `STOP`, merge that tag into `master` before you release.
+
+4. Run the tests (`docker exec -w /var/www/html app ./vendor/bin/phpunit`), and move `[Unreleased]` in `CHANGELOG.md` to the new version.
+5. Tag and push using one style only, `vX.Y.Z`, as an annotated tag:
+
+   ```bash
+   git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin master vX.Y.Z
+   ```
+
+6. In the consuming app, run `composer update 99designs/graphql-bundle` and run the app's test suite before merging.
+
+Upgrade `99designs/graphql` (GraphQL-php fork) first, release it, then release the bundle against it.
+
+> History: `v2.0.1` was tagged on the unmerged `release/2.0.1` branch, so its `SymfonyContainer` fix was missing from `v2.0.2`–`v2.0.4`. Do not repeat this.
+
 ## License
 
 See the LICENSE file in the repository.

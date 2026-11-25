@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Youshido\GraphQLBundle\DependencyInjection\GraphQLExtension;
+use Youshido\GraphQLBundle\Execution\Container\SymfonyContainer;
 
 class GraphQLExtensionTest extends TestCase
 {
@@ -67,6 +68,17 @@ class GraphQLExtensionTest extends TestCase
             ],
             $container->getParameter('graphql.response.headers')
         );
+    }
+
+    public function testSymfonyContainerBridgeIsInstantiable()
+    {
+        $container = new ContainerBuilder();
+        (new GraphQLExtension())->load([], $container);
+
+        $bridge = $container->get('graphql.symfony_container_bridge');
+
+        $this->assertInstanceOf(SymfonyContainer::class, $bridge);
+        $this->assertSame($container, $bridge->getSymfonyContainer());
     }
 
     private function loadContainerFromFile($file, $type, array $services = [], $skipEnvVars = false)
